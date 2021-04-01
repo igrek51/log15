@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,6 +75,7 @@ func TerminalFormat() Format {
 			b.Write(bytes.Repeat([]byte{' '}, termMsgJust-len(r.Msg)))
 		}
 
+		r.Ctx = sortContext(r.Ctx)
 		// print the keys logfmt style
 		logfmt(b, r.Ctx, color)
 		return b.Bytes()
@@ -117,6 +119,30 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int) {
 	}
 
 	buf.WriteByte('\n')
+}
+
+// sortContext sorts context variables by keys in alphabetical order,
+// thus making logs easier to read and compare
+func sortContext(ctx []interface{}) []interface{} {
+	ctxMap := make(map[string]interface{})
+	for i := 0; i < len(ctx); i += 2 {
+		k := ctx[i].(string)
+		val := ctx[i+1]
+		ctxMap[k] = val
+	}
+
+	keys := make([]string, 0)
+	for k := range ctxMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	sortedCtx := make([]interface{}, len(keys)*2)
+	for i, k := range keys {
+		sortedCtx[i*2] = k
+		sortedCtx[i*2+1] = ctxMap[k]
+	}
+	return sortedCtx
 }
 
 // JsonFormat formats log records as JSON objects separated by newlines.
